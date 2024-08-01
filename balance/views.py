@@ -1,14 +1,16 @@
 import decimal
+from django.db import transaction
 
 from django.contrib.auth.models import User
 from rest_framework import views, status
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
+from rest_framework.generics import RetrieveAPIView, ListAPIView
+from rest_framework.pagination import PageNumberPagination
+
 from .serializers import BalanceSerializer, TransactionSerializer
 from .models import Balance, Transaction
-
-# {'amount': 100}
-# {"amount": 100, "receiver_id": "1"}
+from .services import topup_balance, transfer_balance
 
 
 class TopupBalanceView(views.APIView):
@@ -19,19 +21,15 @@ class TopupBalanceView(views.APIView):
         if not amount:
             return Response({'error': 'Не указана сумма.'}, status=status.HTTP_400_BAD_REQUEST)
 
-        user = request.user
-        balance = Balance.objects.get(user=user)
-        balance.amount += decimal.Decimal(amount)  # Преобразование копеек в рубли
-        balance.save()
+        try:
+            amount = decimal.Decimal(amount)
+        except decimal.InvalidOperation:
+            return Response({'error': 'Неверный формат суммы.'}, status=status.HTTP_400_BAD_REQUEST)
 
-        transaction = Transaction.objects.create(
-            user=user,
-            amount=decimal.Decimal(amount),
-            type='topup',
-            description='Пополнение баланса',
-        )
+        # Вызов сервиса для пополнения баланса
+        topup_balance(request.user, amount)
 
-        return Response({'message': 'Баланс пополнен.'}, status=status.HTTP_200_OK)
+        return Response({'message': 'Баланс пополнен.'})
 
 class TransferBalanceView(views.APIView):
     permission_classes = [IsAuthenticated]
@@ -42,53 +40,35 @@ class TransferBalanceView(views.APIView):
         if not receiver_id or not amount:
             return Response({'error': 'Не указаны данные получателя или сумма.'}, status=status.HTTP_400_BAD_REQUEST)
 
+        try:
+            amount = decimal.Decimal(amount)
+        except decimal.InvalidOperation:
+            return Response({'error': 'Неверный формат суммы.'}, status=status.HTTP_400_BAD_REQUEST)
+
         user = request.user
-        receiver = User.objects.get(id=receiver_id)
+        receiver = User.objects.filter(id=receiver_id).first()
         if not receiver:
             return Response({'error': 'Пользователь не найден.'}, status=status.HTTP_404_NOT_FOUND)
 
-        balance = Balance.objects.get(user=user)
-        if balance.amount < decimal.Decimal(amount):
-            return Response({'error': 'Недостаточно средств.'}, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            transfer_balance(user, receiver, amount)
+        except ValueError as e:
+            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
-        balance.amount -= decimal.Decimal(amount)
-        balance.save()
+        return Response({'message': 'Перевод выполнен.'})
 
-        receiver_balance = Balance.objects.get(user=receiver)
-        receiver_balance.amount += decimal.Decimal(amount)
-        receiver_balance.save()
-
-        transaction = Transaction.objects.create(
-            user=user,
-            amount=decimal.Decimal(amount),
-            type='transfer',
-            description=f'Перевод на баланс пользователя {receiver.username}',
-        )
-
-        receiver_transaction = Transaction.objects.create(
-            user=receiver,
-            amount=decimal.Decimal(amount),
-            type='topup',
-            description=f'Перевод от пользователя {user.username}',
-        )
-
-        return Response({'message': 'Перевод выполнен.'}, status=status.HTTP_200_OK)
-
-class GetBalanceView(views.APIView):
+class GetBalanceView(RetrieveAPIView):
     permission_classes = [IsAuthenticated]
+    serializer_class = BalanceSerializer
 
-    def get(self, request):
-        user = request.user
-        balance = Balance.objects.get(user=user).amount
-        return Response({'balance': balance}, status=status.HTTP_200_OK)
+    def get_object(self):
+        return Balance.objects.get(user=self.request.user)
 
-
-class GetHistoryView(views.APIView):
+class GetHistoryView(ListAPIView):
     permission_classes = [IsAuthenticated]
+    serializer_class = TransactionSerializer
+    pagination_class = PageNumberPagination
 
-    def get(self, request):
-        user = request.user
-        history = Transaction.objects.filter(user=user).order_by('-timestamp')
-        serializer = TransactionSerializer(history, many=True)
-
-        return Response({'history': serializer.data}, status=status.HTTP_200_OK)
+    def get_queryset(self):
+        user = self.request.user
+        return Transaction.objects.filter(user=user).order_by('-timestamp')
