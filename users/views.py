@@ -1,11 +1,10 @@
-from django.shortcuts import redirect, render
-from django.contrib.auth.forms import UserCreationForm, AuthenticationForm
 from django.contrib.auth import login, logout
+from django.contrib.auth.forms import AuthenticationForm, UserCreationForm
 from django.db import transaction
-
-from rest_framework.views import View
-from rest_framework.response import Response
+from django.shortcuts import redirect, render
 from rest_framework import status
+from rest_framework.response import Response
+from rest_framework.views import View
 
 from balance.models import Balance
 

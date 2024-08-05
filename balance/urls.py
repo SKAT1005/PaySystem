@@ -1,5 +1,7 @@
 from django.urls import path
-from .views import TopupBalanceView, TransferBalanceView, GetBalanceView, GetHistoryView
+
+from .views import (GetBalanceView, GetHistoryView, TopupBalanceView,
+                    TransferBalanceView)
 
 urlpatterns = [
     path('topup/', TopupBalanceView.as_view(), name='topup_balance'),

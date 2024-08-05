@@ -1,15 +1,14 @@
 import decimal
-from django.db import transaction
 
 from django.contrib.auth.models import User
-from rest_framework import views, status
-from rest_framework.response import Response
-from rest_framework.permissions import IsAuthenticated
-from rest_framework.generics import RetrieveAPIView, ListAPIView
+from rest_framework import status, views
+from rest_framework.generics import ListAPIView, RetrieveAPIView
 from rest_framework.pagination import PageNumberPagination
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
 
-from .serializers import BalanceSerializer, TransactionSerializer
 from .models import Balance, Transaction
+from .serializers import BalanceSerializer, TransactionSerializer
 from .services import topup_balance, transfer_balance
 
 

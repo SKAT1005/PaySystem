@@ -1,14 +1,16 @@
-from unittest.mock import patch, MagicMock
 from decimal import Decimal
-from django.test import TestCase
-from django.contrib.auth.models import User
-from rest_framework.test import APIRequestFactory, force_authenticate
-from rest_framework import status
+from unittest.mock import MagicMock, patch
 
-from .serializers import BalanceSerializer, TransactionSerializer
-from .views import TopupBalanceView, TransferBalanceView, GetBalanceView, GetHistoryView
+from django.contrib.auth.models import User
+from django.test import TestCase
+from rest_framework import status
+from rest_framework.test import APIRequestFactory, force_authenticate
+
 from .models import Balance, Transaction, TransactionType
+from .serializers import BalanceSerializer, TransactionSerializer
 from .services import topup_balance, transfer_balance
+from .views import (GetBalanceView, GetHistoryView, TopupBalanceView,
+                    TransferBalanceView)
 
 
 class BalanceTests(TestCase):
