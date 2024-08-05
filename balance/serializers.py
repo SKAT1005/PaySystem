@@ -6,9 +6,10 @@ from .models import Balance, Transaction
 class BalanceSerializer(serializers.ModelSerializer):
     class Meta:
         model = Balance
-        fields = ['amount']
+        fields = ["amount"]
+
 
 class TransactionSerializer(serializers.ModelSerializer):
     class Meta:
         model = Transaction
-        fields = ['user', 'amount', 'timestamp', 'type']
+        fields = ["user", "amount", "timestamp", "type"]
